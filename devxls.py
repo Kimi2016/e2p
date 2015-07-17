@@ -607,7 +607,94 @@ base_type_dict = {
 		InstanceType: True,
 }
 
-def base_dump(value):
+############################################dump python begin###################################################
+def base_dump_python(value):
+	if type(value) == IntType:
+		write("%d" % value)
+	elif type(value) == FloatType:
+		write("%f" % value)
+	elif type(value) == BooleanType:
+		if value:
+			write("True")
+		else:
+			write("False")
+	elif type(value) == StringType:
+		write("\"%s\"" % value)
+	elif type(value) == UnicodeType:
+		write("\"%s\"" % value.encode(OUTPUT_ENCODE))
+
+	elif type(value) == NoneType:
+		write("None")
+	elif type(value) == ListType:
+		write("( ")
+		for x in value:
+			base_dump_python(x)
+			write(", ")
+		write(")")
+	elif type(value) == DictType:
+		# 不向下展开的Dict,只用于List中的最后一层数据
+		# 如 List|DateTable 等
+		write("{ ")
+		for k, v in value.iteritems():
+			if type(k) == StringType:
+				write("\"%s\"  ： " % k)
+			elif type(value) == UnicodeType:
+				write("\"%s\"  :  " % k.encode(OUTPUT_ENCODE))
+			else:
+				write("%s : " % k)
+			base_dump_python(v)
+			write(", ")
+		write("}")
+	elif type(value) == InstanceType:
+		write(str(value))
+
+def dump_value_python(data, level=1):
+	type_value = type(data)
+
+	if type_value in base_type_dict:
+		base_dump_python(data)
+	elif type_value == DictType:
+		write("{\n")
+		##
+		# 为了每次读表diff好看。。。sort一下
+		sortitems = data.items()
+		sortitems.sort()
+		for k, v in sortitems:
+			write("\t"*level)
+
+			if isinstance(v, ExtentType) and v.comment == True:
+				write("'''\n")
+				write("\t"*level)
+				write(k + ":\n")
+				write("\t"*level)
+			elif type(k) == IntType:
+				write("%d : " % k)
+			elif k.find('@') >= 0:
+				write("\"%s\" : " % k.encode('ascii'))
+			else:
+				tag = '\"' if type(k) == StringType or type(k) == UnicodeType else ''
+				try:
+					write("%s%s%s : " % (tag, k.encode('ascii'), tag))
+				except:
+					write("%s%s%s : " % (tag,k.encode(OUTPUT_ENCODE),tag))
+			dump_value_python(v, level + 1)
+			if isinstance(v, ExtentType) and v.comment == True:
+				write("\n")
+				write("\t"*level)
+				write("'''\n")
+			else:
+				write(" ,\n")
+		##
+		write("\t"*(level - 1))
+		write("}")
+	else:
+		exit("Error: Unkonwn Type %s in dump " % type_value)
+############################################dump python end###################################################
+
+
+############################################dump lua begin####################################################
+def base_dump_lua(value):
+	print 'base_dump_lua'
 	if type(value) == IntType:
 		write("%d" % value)
 	elif type(value) == FloatType:
@@ -631,7 +718,7 @@ def base_dump(value):
 	elif type(value) == ListType:
 		write("{ ")
 		for x in value:
-			base_dump(x) 
+			base_dump_lua(x)
 			write(", ")
 		write("}")
 	elif type(value) == DictType:
@@ -643,20 +730,18 @@ def base_dump(value):
 				write("[ %d ] = " % k)
 			else:
 				write("%s = " % k)
-			base_dump(v)
+			base_dump_lua(v)
 			write(", ")
 		write("}")
 	elif type(value) == InstanceType:
 		write(str(value))
 
-
-
-
-def dump_value(data, level=1):
+def dump_value_lua(data, level=1):
+	print 'dump_value_lua'
 	type_value = type(data)
 
 	if type_value in base_type_dict:
-		base_dump(data)
+		base_dump_lua(data)
 	elif type_value == DictType:
 		write("{\n")
 		##
@@ -683,7 +768,7 @@ def dump_value(data, level=1):
 					write("%s = " % k.encode('ascii'))
 				except:
 					write("['%s'] = " % k.encode(OUTPUT_ENCODE))
-			dump_value(v, level + 1)
+			dump_value_lua(v, level + 1)
 			if isinstance(v, ExtentType) and v.comment == True:
 				write("\n")
 				for i in xrange(level):
@@ -697,11 +782,27 @@ def dump_value(data, level=1):
 		write("}")
 	else:
 		exit("Error: Unkonwn Type %s in dump " % type_value)
+############################################dump lua end#####################################################
 
-def MakeQuickLink(Name):
-	return '''
+def dump_value(data, lang):
+	if lang == LANG_PYTHON:
+		return dump_value_python(data)
+	elif lang == LANG_LUA:
+		return dump_value_lua(data)
+	else:
+		err_write('Only support output to lua|python')
+
+
+def MakeQuickLink(Name, lang):
+	if lang == LANG_PYTHON:
+		return '''
 local __%(Name)s__ = DataTable.%(Name)s.Content
 function Get%(Name)s() return __%(Name)s__ end
+''' % { 'Name' : Name }
+	elif lang == LANG_LUA:
+		return '''
+__%(Name)s__ = DataTable.%(Name)s.Content
+def Get%(Name)s(): return __%(Name)s__
 ''' % { 'Name' : Name }
 
 def usage():
@@ -749,6 +850,8 @@ def main():
 		output_lang = LANG_LUA
 		output_comment = '--'
 	else:
+		output_lang = None
+		output_comment = None
 		exit('invalid extension .%s, must in .py|.lua'%ext)
 
 	output_file = open(output_filename,'w')
@@ -782,26 +885,40 @@ def main():
 			if os.path.isfile(subfilepath):
 				merge(data_table, gen_table(subfilepath))
 	#write("--autogen-begin\n")
-	write("\nlocal DataTable = \n")
+	if output_lang == LANG_PYTHON:
+		write('#-*-coding:utf-8 -*-\n')
+		write("\nDataTable =\\\n")
+	elif output_lang == LANG_LUA:
+		write("\nlocal DataTable = \n")
 
 	# 尝试调用扩展钩子模块里的'pre_dump_table'，将数据表转化为dump用的表。
 	if pre_dump_table:
 		data_table = pre_dump_table(data_table)
 
-	dump_value(data_table)
-	write("\nfunction GetTable() return DataTable end\n")
-	write("\nfunction GetContent(SheetName) return DataTable[SheetName].Content end\n")
+	dump_value(data_table,output_lang)
 
-	if update_file_list and len(update_file_list) > 0:
-		write("\nfunction __update__()\n")
-		for filepath in update_file_list:
-			write("\tUpdate('" + filepath +"')\n")
-		write("end\n")
+	if output_lang == LANG_PYTHON:
+		write("\ndef GetTable(): return DataTable\n")
+		write("\ndef GetContent(SheetName): return DataTable[SheetName].Content\n")
+
+		if update_file_list and len(update_file_list) > 0:
+			write("\ndef __update__():\n")
+			for filepath in update_file_list:
+				write("\tUpdate('" + filepath +"')\n")
+	if output_lang == LANG_LUA:
+		write("\nfunction GetTable() return DataTable end\n")
+		write("\nfunction GetContent(SheetName) return DataTable[SheetName].Content end\n")
+
+		if update_file_list and len(update_file_list) > 0:
+			write("\nfunction __update__()\n")
+			for filepath in update_file_list:
+				write("\tUpdate('" + filepath +"')\n")
+			write("end\n")
 
 	# 尝试生成QuickLink函数
 	for Name, Data in data_table.iteritems():
 		if 'QuickLink' in Data:
-			write(MakeQuickLink(Name))
+			write(MakeQuickLink(Name,output_lang))
 
 	#write("--autogen-end\n")
 
