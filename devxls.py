@@ -111,6 +111,7 @@ INVALID = "Invalid"
 NAME = "Name"
 TYPE = "Type"
 LIST = "List"
+COMPOSITE = 'Composite'
 REF = "RefType"
 RAWDATA = "RawData"
 RAW_TEXT = "RawText"	# 原始数据
@@ -134,6 +135,7 @@ post_custom_text = None
 handler_dict = {
 	'FlexAttr':  dtype_flexattr.FlexAttr,
 }
+output_lang = None
 
 class ExtentType:
 	def __init__(self, value, comment = None):
@@ -149,7 +151,7 @@ class ExtentType:
 def xls_format(cell, i, j):
 	value = cell.value
 	ctype = cell.ctype
-	#print(value, ctype, type(value))
+	# print(value, ctype, type(value))
 
 	if ctype == xlrd.XL_CELL_EMPTY: #0
 		return None 
@@ -284,14 +286,30 @@ def parse_type(value, vtype):
 				value = "function (Args) return %s end"	% value
 			return ExtentType(value)
 	elif vtype == "Func":
-		value = "function (Args, ...) return %s end" % (value or "nil")
+		global  output_lang
+		if output_lang == LANG_LUA:
+			value = "function (Args, ...) return %s end" % (value or "nil")
+		elif output_lang == LANG_PYTHON:
+			value = "lambda : %s" % (value or "None")
+		else:
+			err_write('only support output .py|.lua')
 		return ExtentType(value)	
 	elif vtype == "TrackFunc":
-		value = "function (Args, t) return %s end" % (value or "nil")
+		if output_lang == LANG_LUA:
+			value = "function (Args, t) return %s end" % (value or "nil")
+		elif output_lang == LANG_PYTHON:
+			value = "lambda t : %s" % (value or "None")
+		else:
+			err_write('only support output .py|.lua')
 		return ExtentType(value)
 	elif vtype == "Run":
 		if value is None:
-			value = "function(Args) return Args end" 
+			if output_lang == LANG_LUA:
+				value = "function(Args) return Args end"
+			elif output_lang == LANG_PYTHON:
+				value = "lambda val: val"
+			else:
+				err_write('only support output .py|.lua')
 		else:
 			old_value = value
 			value = "function (Args) %s; return Args end" % value
@@ -309,8 +327,47 @@ def parse_type(value, vtype):
 			if os.system(tmp):
 				exit("Error: %s lua语法错误" % old_value)
 		return ExtentType(value)
+	elif vtype.startswith(COMPOSITE):
+		template = eval(vtype[len(COMPOSITE):])
+		value = convert(value, template)
+		return  value
 
 	return value
+
+##########################COMPOSITE type begin#############################
+def _convert_template(data, template = []):
+	if template is None:
+		return data
+	elif isinstance(template, list):
+		return _convert_template_list(data,template)
+	elif isinstance(template, dict):
+		return _convert_template_dict(data,template)
+	else:
+		assert False,'Invalid tempalte type'%type(template)
+
+def _convert_template_list(data, template):
+	new_temp = template[0] if len(template)>0 else None
+	ret = []
+	for k in data:
+		ret.append(_convert_template(k, new_temp))
+	return ret
+
+def _convert_template_dict(data, template):
+	ret = {}
+	for i in xrange(len(data)):
+		info = template[i]
+		key = info[0] if isinstance(info, tuple) else info
+		new_temp = info[1] if isinstance(info, tuple) and len(info)>1 else None
+		ret[key] = _convert_template(data[i], new_temp)
+	return ret
+
+def convert(data_str, template = []):
+	import json
+	json_str = '['+data_str.replace('(','[').replace(')',']')+']'
+	data = json.loads(json_str)
+
+	return _convert_template(data, template)
+##########################COMPOSITE type end#############################
 
 def load_hookfile(filename):
 	import imp
@@ -416,7 +473,7 @@ def parse_value(value, type_info):
 
 	
 
-def parse_sheet(sheet, keyrow, typerow, datrow_begin, sheet_name):
+def parse_sheet(sheet, keyrow, typerow, datrow_begin, sheet_name, skip_row_num = 0):
 	ncol = sheet.ncols	
 	nrow = sheet.nrows
 
@@ -426,6 +483,7 @@ def parse_sheet(sheet, keyrow, typerow, datrow_begin, sheet_name):
 		if xls_format(sheet.row(i)[0], i, 0) is not None:
 			skip_row = i
 			break
+	skip_row += skip_row_num  #略过表头
 
 	key_row = sheet.row(keyrow + skip_row)
 	type_row = sheet.row(typerow + skip_row)
@@ -444,6 +502,7 @@ def parse_sheet(sheet, keyrow, typerow, datrow_begin, sheet_name):
 
 		# 默认关键字值
 		type_info_list[i][LIST] = False
+		type_info_list[i][COMPOSITE] = False
 		type_info_list[i][VARARGS] = False
 		type_info_list[i][DEFAULT] = False
 		type_info_list[i][INVALID] = False
@@ -482,6 +541,12 @@ def parse_sheet(sheet, keyrow, typerow, datrow_begin, sheet_name):
 
 		if type_info_list[i][LIST] and type_info_list[i][VARARGS]:
 			exit("Error: field %s 同时是List 和 VarArgs" % vtype)
+		if type(key) == StringType and key.find('[')>=0 or key.find(']')>=0:
+			if type_info_list[i][LIST] is False:
+				exit("Error: field %s 属性合并项必须是List" % vtype)
+			if key.find('[')<0 or key.find(']')<0:
+				exit("Error: field %s 格式错误" % key)
+
 
 	if type_info_list[0][TYPE] == UID:
 		auto_id = False
@@ -637,7 +702,7 @@ def base_dump_python(value):
 		write("{ ")
 		for k, v in value.iteritems():
 			if type(k) == StringType:
-				write("\"%s\"  ： " % k)
+				write("\"%s\"  : " % k)
 			elif type(value) == UnicodeType:
 				write("\"%s\"  :  " % k.encode(OUTPUT_ENCODE))
 			else:
@@ -694,7 +759,6 @@ def dump_value_python(data, level=1):
 
 ############################################dump lua begin####################################################
 def base_dump_lua(value):
-	print 'base_dump_lua'
 	if type(value) == IntType:
 		write("%d" % value)
 	elif type(value) == FloatType:
@@ -737,7 +801,6 @@ def base_dump_lua(value):
 		write(str(value))
 
 def dump_value_lua(data, level=1):
-	print 'dump_value_lua'
 	type_value = type(data)
 
 	if type_value in base_type_dict:
@@ -843,6 +906,7 @@ def main():
 		exit('need extension in .py|.lua')
 
 	ext = output_filename.split('.')[-1]
+	global  output_lang
 	if ext == 'py':
 		output_lang = LANG_PYTHON
 		output_comment = '#'
@@ -850,7 +914,6 @@ def main():
 		output_lang = LANG_LUA
 		output_comment = '--'
 	else:
-		output_lang = None
 		output_comment = None
 		exit('invalid extension .%s, must in .py|.lua'%ext)
 
