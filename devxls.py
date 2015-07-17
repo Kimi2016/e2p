@@ -724,13 +724,36 @@ def merge(src, tar):
 		else:
 			src[k] = v
 
+#输出语言选择
+LANG_PYTHON = 0x1111
+LANG_LUA = 0x2222
+
 def main():
-	if len(sys.argv) < 2:
+	if len(sys.argv) < 3:
 		usage()
 
 	filename = sys.argv[1]
 	if not os.path.isfile(filename) and not os.path.isdir(filename):
 		exit("Error: %s is not a valid filename or pathname" % filename)
+
+	#输出文件
+	output_filename = sys.argv[2]
+	if output_filename.find('.') <0:
+		exit('need extension in .py|.lua')
+
+	ext = output_filename.split('.')[-1]
+	if ext == 'py':
+		output_lang = LANG_PYTHON
+		output_comment = '#'
+	elif ext == 'lua':
+		output_lang = LANG_LUA
+		output_comment = '--'
+	else:
+		exit('invalid extension .%s, must in .py|.lua'%ext)
+
+	output_file = open(output_filename,'w')
+	global write
+	write = output_file.write
 
 	# 参数处理
 	update_file_list = None
@@ -783,9 +806,11 @@ def main():
 	#write("--autogen-end\n")
 
 	if post_custom_text:
-		write("\n--post_custom_text-begin\n")
+		write("\n%spost_custom_text-begin\n"%output_comment)
 		write(post_custom_text())
-		write("\n--post_custom_text-end\n")
+		write("\n%spost_custom_text-end\n"%output_comment)
+
+	output_file.close()
 
 if __name__=="__main__":
 	main()
