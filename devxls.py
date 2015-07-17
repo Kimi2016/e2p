@@ -121,6 +121,7 @@ DEFAULT = "Default"
 CONTENT = "Content"
 UID = "Uid"
 AUTO_ID = "AutoId"
+NEED_OUTPUT = "NeedOutput"
 OUTPUT_ENCODE = "utf-8"
 LUAC_BIN_PATH = "luac"
 PLATFORM = "Platform"
@@ -556,6 +557,12 @@ def parse_sheet(sheet, keyrow, typerow, datrow_begin, sheet_name, skip_row_num =
 		err_write("Error sheet %s" % sheet_name)
 		exit("Error: 第一列非空的列类型必须为Uid 或 AutoId")
 
+	#确认谁否需要导表
+	if len(type_info_list) > 1 and TYPE in type_info_list[1] and type_info_list[1][TYPE] == NEED_OUTPUT:
+		output_all = False
+	else:
+		output_all = True
+
 	# 确认平台属性
 	if len(type_info_list) > 1 and TYPE in type_info_list[1] and type_info_list[1][TYPE] == PLATFORM:
 		platform = True
@@ -568,6 +575,12 @@ def parse_sheet(sheet, keyrow, typerow, datrow_begin, sheet_name, skip_row_num =
 		
 	for i in xrange(datrow_begin + skip_row, sheet.nrows) :
 		row_data = sheet.row(i)
+		#判断本行是否需要导出
+		need_output = xls_format(row_data[1],0,0)
+		# print row_data[1].value,row_data[1].ctype,need_output
+		if not output_all and not bool(need_output):
+			continue
+
 		if auto_id:
 			last_id = last_id + 1
 			record_id = last_id 
