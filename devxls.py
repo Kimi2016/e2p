@@ -101,6 +101,7 @@ from sys import exit
 import os.path
 from types import *
 import dtype_flexattr
+from collections import OrderedDict
 
 KEY_ROW = 1
 TYPE_ROW = 2
@@ -127,6 +128,7 @@ LUAC_BIN_PATH = "luac"
 PLATFORM = "Platform"
 PLATFORM_IOS = "_ios"
 PLATFORM_AND = "_android"
+MERGE_KEY = 'MergeKey'
 
 write = sys.stdout.write
 err_write = sys.stderr.write
@@ -430,6 +432,15 @@ def try_convert_int(str):
 
 def push_value(value, path, record_table, varargs=False):
 	path_list = path.split(".")
+	#检测是否需要合并
+	merge_lst = path_list[-1].split('|')
+	merge_prop = None
+	if len(merge_lst) > 1:
+		assert len(merge_lst) == 2,'只支持简单数组的属性合并'
+		path_list[-1] = merge_lst[0]	
+		merge_prop = merge_lst[1]
+		assert type(value) == ListType,'属性合并项必须是数组'
+
 	cur_table = record_table
 	for path in path_list[:-1]:
 		path = try_convert_int(path)
@@ -446,6 +457,19 @@ def push_value(value, path, record_table, varargs=False):
 			cur_table[key] = [ value ]
 		else:
 			cur_table[key].append(value)
+	elif merge_prop is not None:
+		if not key in cur_table:
+			cur_table[key] = OrderedDict()
+		if merge_prop == MERGE_KEY:
+			for merge_key in value:
+				assert merge_key not in cur_table[key], ('属性合并时key值重复',merge_key)
+				cur_table[key][merge_key] = {}
+		else:
+			assert len(value) == len(cur_table[key]),('merge_key和待合并属性数量不吻合',key,merge_prop)
+			cur_pos = 0
+			for merge_key,merge_dict in cur_table[key].iteritems():
+				merge_dict[merge_prop] = value[cur_pos]
+				cur_pos += 1
 	else:
 		try:
 			cur_table[key] = value
@@ -727,9 +751,14 @@ def base_dump_python(value):
 		write(str(value))
 
 def dump_value_python(data, level=1):
+	ret_dict = {}
+	if isinstance(data,OrderedDict):
+		for k,v in data.iteritems():
+			ret_dict[k] = v
+		data = ret_dict
 	type_value = type(data)
 
-	if type_value in base_type_dict:
+	if type_value in base_type_dict :
 		base_dump_python(data)
 	elif type_value == DictType:
 		write("{\n")
