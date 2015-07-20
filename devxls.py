@@ -249,7 +249,6 @@ def parse_type(value, vtype):
 	elif vtype == "DateTable":
 		parm = value.replace("-",":")
 		parm = parm.split(":")
-		print 333333
 		return {
 				"year": int(parm[0]),
 				"month": int(parm[1]),
@@ -264,10 +263,8 @@ def parse_type(value, vtype):
 				}
 	elif vtype == "DateTime":
 		parm = value.replace("-",":")
-		print parm
 		parm = parm.replace(" ",":")
 		parm = parm.split(":")
-		print parm
 		if len(parm) <=3:
 			err_write("Warnning: DateTime append hour:min:sec auto value=%s\n" % value)
 			parm.append(0)
@@ -466,7 +463,7 @@ def push_value(value, path, record_table, varargs=False):
 			cur_table[key] = OrderedDict()
 		if merge_prop == MERGE_KEY:
 			for merge_key in value:
-				assert merge_key not in cur_table[key], ('属性合并时key值重复',merge_key)
+				assert merge_key not in cur_table[key], ('属性合并时key值重复',merge_key,value)
 				cur_table[key][merge_key] = {}
 		else:
 			assert len(value) == len(cur_table[key]),('merge_key和待合并属性数量不吻合',key,merge_prop)
@@ -485,13 +482,10 @@ def push_value(value, path, record_table, varargs=False):
 def parse_value(value, type_info):
 	# 列表类型 并且 是 文本
 	if type_info[LIST]:
-		print 1111
 		if type(value) == UnicodeType or type(value) == StringType:
 			value = value.split("|")
 			for i in xrange(len(value)):
-				val = value[i].strip()[1:-1] #去除最外层的括号
-				print val
-				value[i] = parse_type(val, type_info[TYPE])
+				value[i] = parse_type(value[i], type_info[TYPE])
 		else:
 			value = [ parse_type(value, type_info[TYPE]) ]
 	elif type_info[REF]:
@@ -499,9 +493,7 @@ def parse_value(value, type_info):
 		# load(type_info[TYPE])
 		# value = check_ref(value, type_info[TYPE])
 	else:
-		print 2222
 		value = parse_type(value, type_info[TYPE])
-		print value
 
 	return value
 
@@ -1072,7 +1064,8 @@ def main():
 if __name__=="__main__":
 	# main()
 	# print convert2Dict('autogen_config.xls','autogen_config')
-	convert2File('aa.xls','result2.py','main')
+	# convert2File('aa.xls','result2.py','main')
+	convert2File('devxls_test.xls','devxls_test.py')
 	# convert2File('autogen_config.xls','result.py','autogen_config')
 	# convert2Dict('autogen_config.xls','autogen_config')
 
