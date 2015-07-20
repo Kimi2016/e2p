@@ -916,12 +916,12 @@ def dump_value(data, lang):
 def MakeQuickLink(Name, lang):
 	if lang == LANG_PYTHON:
 		return '''
-local __%(Name)s__ = DataTable.%(Name)s
+local __%(Name)s__ = data.%(Name)s
 function Get%(Name)s() return __%(Name)s__ end
 ''' % { 'Name' : Name }
 	elif lang == LANG_LUA:
 		return '''
-__%(Name)s__ = DataTable[%(Name)s]
+__%(Name)s__ = data[%(Name)s]
 def Get%(Name)s(): return __%(Name)s__
 ''' % { 'Name' : Name }
 
@@ -991,9 +991,9 @@ def convert2File(filename,output_filename,xls_sheet=None,skip_row_num=0,hookfile
 	#write("--autogen-begin\n")
 	if output_lang == LANG_PYTHON:
 		write('#-*-coding:utf-8 -*-\n')
-		write("\nDataTable =\\\n")
+		write("\ndata =\\\n")
 	elif output_lang == LANG_LUA:
-		write("\nlocal DataTable = \n")
+		write("\nlocal data = \n")
 
 	# 尝试调用扩展钩子模块里的'pre_dump_table'，将数据表转化为dump用的表。
 	if pre_dump_table:
@@ -1002,16 +1002,16 @@ def convert2File(filename,output_filename,xls_sheet=None,skip_row_num=0,hookfile
 	dump_value(data_table,output_lang)
 
 	if output_lang == LANG_PYTHON:
-		write("\ndef GetTable(): return DataTable\n")
-		write("\ndef GetContent(SheetName): return DataTable[SheetName]\n")
+		write("\ndef GetTable(): return data\n")
+		write("\ndef GetContent(SheetName): return data[SheetName]\n")
 
 		if update_file_list and len(update_file_list) > 0:
 			write("\ndef __update__():\n")
 			for filepath in update_file_list:
 				write("\tUpdate('" + filepath +"')\n")
 	if output_lang == LANG_LUA:
-		write("\nfunction GetTable() return DataTable end\n")
-		write("\nfunction GetContent(SheetName) return DataTable[SheetName] end\n")
+		write("\nfunction GetTable() return data end\n")
+		write("\nfunction GetContent(SheetName) return data[SheetName] end\n")
 
 		if update_file_list and len(update_file_list) > 0:
 			write("\nfunction __update__()\n")
