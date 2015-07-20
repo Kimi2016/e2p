@@ -950,7 +950,7 @@ def merge(src, tar):
 LANG_PYTHON = 0x1111
 LANG_LUA = 0x2222
 
-def mainConvert(filename,output_filename,hookfile=None,update_file_list=None):
+def mainConvert(filename,output_filename,xls_sheet=None,skip_row_num=0,hookfile=None,update_file_list=None):
 	if not os.path.isfile(filename) and not os.path.isdir(filename):
 		exit("Error: %s is not a valid filename or pathname" % filename)
 
@@ -982,7 +982,7 @@ def mainConvert(filename,output_filename,hookfile=None,update_file_list=None):
 		load_hookfile(hookfile)
 
 	if os.path.isfile(filename):
-		data_table = convert2Dict(filename)
+		data_table = convert2Dict(filename,xls_sheet,skip_row_num)
 	else:
 		data_table = {}
 		for subfilename in os.listdir(filename):
@@ -1060,7 +1060,7 @@ def main():
 		if arg == '-h':
 			usage()
 
-	mainConvert(filename,output_filename,hookfile,update_file_list)
+	convert2File(filename,output_filename,hookfile,update_file_list)
 
 if __name__=="__main__":
 	main()
