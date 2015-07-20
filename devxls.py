@@ -129,6 +129,7 @@ PLATFORM = "Platform"
 PLATFORM_IOS = "_ios"
 PLATFORM_AND = "_android"
 MERGE_KEY = 'MergeKey'
+SKIP_ROW = 'SkipRow'
 
 write = sys.stdout.write
 err_write = sys.stderr.write
@@ -671,12 +672,7 @@ def parse_sheet(sheet, keyrow, typerow, datrow_begin, sheet_name, skip_row_num =
 
 	return sheet_table
 
-
-
-def gen_table(xlsfile) :
-	xls_fileobj = xlrd.open_workbook(xlsfile, logfile=sys.stderr)
-	global datemode
-	datemode = xls_fileobj.datemode
+def parse_table(xls_fileobj) :
 
 	main_table = {}
 	for sheet in xls_fileobj.sheets():
@@ -693,10 +689,31 @@ def gen_table(xlsfile) :
 			if not name in main_table:
 				#err_write("Warning: %s sheet exist but not in main sheet Uid\n" % name)
 				continue
-			sheet_table = parse_sheet(sheet, KEY_ROW, TYPE_ROW, DATA_ROW, name)
+			sheet_table = parse_sheet(sheet, KEY_ROW, TYPE_ROW, DATA_ROW, name,main_table[name][SKIP_ROW])
+			print main_table[name][SKIP_ROW],44444
 			main_table[name][CONTENT] = sheet_table
 	
 	return main_table
+
+def convert2Dict(xls_file, xls_sheet= None,skip_row_num=0):
+	xls_fileobj = xlrd.open_workbook(xls_file, logfile=sys.stderr)
+	global datemode
+	datemode = xls_fileobj.datemode
+
+	if xls_sheet is None:#导出整表
+		return parse_table(xls_fileobj)
+	else:#导出指定sheet
+		for sheet in xls_fileobj.sheets():
+			try:
+				name = int(sheet.name)
+			except:
+				name = sheet.name
+
+			if name != xls_sheet:
+				continue
+			return parse_sheet(sheet,KEY_ROW,TYPE_ROW,DATA_ROW,name,skip_row_num)
+		else:
+			exit('No sheet named %s'%sheet_name)
 
 base_type_dict = { 
 		IntType: True,
@@ -982,13 +999,15 @@ def main():
 
 
 	if os.path.isfile(filename):
-		data_table = gen_table(filename)
+		data_table = convert2Dict(filename)
+		# data_table = parse_table(filename)
 	else:
 		data_table = {}
 		for subfilename in os.listdir(filename):
 			subfilepath = filename + subfilename
 			if os.path.isfile(subfilepath):
-				merge(data_table, gen_table(subfilepath))
+				# merge(data_table, parse_table(subfilepath))
+				merge(data_table, convert2Dict(subfilepath))
 	#write("--autogen-begin\n")
 	if output_lang == LANG_PYTHON:
 		write('#-*-coding:utf-8 -*-\n')
@@ -1036,4 +1055,5 @@ def main():
 
 if __name__=="__main__":
 	main()
+	# print convert2Dict('devxls_test.xls',1003)
 
