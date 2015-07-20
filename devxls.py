@@ -711,7 +711,7 @@ def convert2Dict(xls_file, xls_sheet= None,skip_row_num=0):
 				continue
 			return parse_sheet(sheet,KEY_ROW,TYPE_ROW,DATA_ROW,name,skip_row_num)
 		else:
-			exit('No sheet named %s'%sheet_name)
+			exit('No sheet named %s'%xls_sheet)
 
 base_type_dict = { 
 		IntType: True,
