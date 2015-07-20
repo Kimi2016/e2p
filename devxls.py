@@ -689,7 +689,7 @@ def parse_table(xls_fileobj) :
 				#err_write("Warning: %s sheet exist but not in main sheet Uid\n" % name)
 				continue
 			sheet_table = parse_sheet(sheet, KEY_ROW, TYPE_ROW, DATA_ROW, name,main_table[name][SKIP_ROW])
-			main_table[name][CONTENT] = sheet_table
+			main_table[name] = sheet_table
 	
 	return main_table
 
@@ -916,12 +916,12 @@ def dump_value(data, lang):
 def MakeQuickLink(Name, lang):
 	if lang == LANG_PYTHON:
 		return '''
-local __%(Name)s__ = DataTable.%(Name)s.Content
+local __%(Name)s__ = DataTable.%(Name)s
 function Get%(Name)s() return __%(Name)s__ end
 ''' % { 'Name' : Name }
 	elif lang == LANG_LUA:
 		return '''
-__%(Name)s__ = DataTable.%(Name)s.Content
+__%(Name)s__ = DataTable[%(Name)s]
 def Get%(Name)s(): return __%(Name)s__
 ''' % { 'Name' : Name }
 
@@ -1003,7 +1003,7 @@ def convert2File(filename,output_filename,xls_sheet=None,skip_row_num=0,hookfile
 
 	if output_lang == LANG_PYTHON:
 		write("\ndef GetTable(): return DataTable\n")
-		write("\ndef GetContent(SheetName): return DataTable[SheetName].Content\n")
+		write("\ndef GetContent(SheetName): return DataTable[SheetName]\n")
 
 		if update_file_list and len(update_file_list) > 0:
 			write("\ndef __update__():\n")
@@ -1011,7 +1011,7 @@ def convert2File(filename,output_filename,xls_sheet=None,skip_row_num=0,hookfile
 				write("\tUpdate('" + filepath +"')\n")
 	if output_lang == LANG_LUA:
 		write("\nfunction GetTable() return DataTable end\n")
-		write("\nfunction GetContent(SheetName) return DataTable[SheetName].Content end\n")
+		write("\nfunction GetContent(SheetName) return DataTable[SheetName] end\n")
 
 		if update_file_list and len(update_file_list) > 0:
 			write("\nfunction __update__()\n")
@@ -1063,5 +1063,8 @@ def main():
 
 if __name__=="__main__":
 	# main()
-	print convert2Dict('autogen_config.xls','autogen_config')
+	# print convert2Dict('autogen_config.xls','autogen_config')
+	convert2File('devxls_test.xls','result2.py',)
+	# convert2File('autogen_config.xls','result.py','autogen_config')
+	# convert2Dict('autogen_config.xls','autogen_config')
 
