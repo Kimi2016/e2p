@@ -690,7 +690,6 @@ def parse_table(xls_fileobj) :
 				#err_write("Warning: %s sheet exist but not in main sheet Uid\n" % name)
 				continue
 			sheet_table = parse_sheet(sheet, KEY_ROW, TYPE_ROW, DATA_ROW, name,main_table[name][SKIP_ROW])
-			print main_table[name][SKIP_ROW],44444
 			main_table[name][CONTENT] = sheet_table
 	
 	return main_table
@@ -951,16 +950,11 @@ def merge(src, tar):
 LANG_PYTHON = 0x1111
 LANG_LUA = 0x2222
 
-def main():
-	if len(sys.argv) < 3:
-		usage()
-
-	filename = sys.argv[1]
+def mainConvert(filename,output_filename,hookfile=None,update_file_list=None):
 	if not os.path.isfile(filename) and not os.path.isdir(filename):
 		exit("Error: %s is not a valid filename or pathname" % filename)
 
 	#输出文件
-	output_filename = sys.argv[2]
 	if output_filename.find('.') <0:
 		exit('need extension in .py|.lua')
 
@@ -981,32 +975,19 @@ def main():
 	write = output_file.write
 
 	# 参数处理
-	update_file_list = None
-	for i in xrange(len(sys.argv)):
-		arg = sys.argv[i]
-		if arg == '-i':
-			hookfile = sys.argv[i + 1]
-			if not os.path.isfile(hookfile):
-				exit("Error: %s is not a valid filename" % hookfile)
-			# 载入类型扩展钩子
-			load_hookfile(hookfile)
-
-		if arg == "-u":
-			update_file_list = sys.argv[i+1:]
-
-		if arg == '-h':
-			usage()
-
+	if hookfile is not None:
+		if not os.path.isfile(hookfile):
+			exit("Error: %s is not a valid filename" % hookfile)
+		# 载入类型扩展钩子
+		load_hookfile(hookfile)
 
 	if os.path.isfile(filename):
 		data_table = convert2Dict(filename)
-		# data_table = parse_table(filename)
 	else:
 		data_table = {}
 		for subfilename in os.listdir(filename):
 			subfilepath = filename + subfilename
 			if os.path.isfile(subfilepath):
-				# merge(data_table, parse_table(subfilepath))
 				merge(data_table, convert2Dict(subfilepath))
 	#write("--autogen-begin\n")
 	if output_lang == LANG_PYTHON:
@@ -1052,6 +1033,34 @@ def main():
 		write("\n%spost_custom_text-end\n"%output_comment)
 
 	output_file.close()
+
+def main():
+	if len(sys.argv) < 3:
+		usage()
+
+	#输入文件
+	filename = sys.argv[1]
+	#输出文件
+	output_filename = sys.argv[2]
+	# 参数处理
+	update_file_list = None
+	hookfile = None
+	for i in xrange(len(sys.argv)):
+		arg = sys.argv[i]
+		if arg == '-i':
+			hookfile = sys.argv[i + 1]
+			if not os.path.isfile(hookfile):
+				exit("Error: %s is not a valid filename" % hookfile)
+			# 载入类型扩展钩子
+			load_hookfile(hookfile)
+
+		if arg == "-u":
+			update_file_list = sys.argv[i+1:]
+
+		if arg == '-h':
+			usage()
+
+	mainConvert(filename,output_filename,hookfile,update_file_list)
 
 if __name__=="__main__":
 	main()
