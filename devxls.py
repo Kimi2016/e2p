@@ -500,7 +500,7 @@ def parse_value(value, type_info):
 	
 
 def parse_sheet(sheet, keyrow, typerow, datrow_begin, sheet_name, skip_row_num = 0):
-	ncol = sheet.ncols	
+	ncol = sheet.ncols
 	nrow = sheet.nrows
 
 	#扫描第一行,首列不为空的, 作为表头
@@ -582,7 +582,7 @@ def parse_sheet(sheet, keyrow, typerow, datrow_begin, sheet_name, skip_row_num =
 		err_write("Error sheet %s" % sheet_name)
 		exit("Error: 第一列非空的列类型必须为Uid 或 AutoId")
 
-	#确认谁否需要导表
+	#确认是否需要导表
 	if len(type_info_list) > 1 and TYPE in type_info_list[1] and type_info_list[1][TYPE] == NEED_OUTPUT:
 		output_all = False
 	else:
@@ -597,12 +597,11 @@ def parse_sheet(sheet, keyrow, typerow, datrow_begin, sheet_name, skip_row_num =
 	last_id = 0
 	record_id = 0
 	id_dict = {}
-		
+	
 	for i in xrange(datrow_begin + skip_row, sheet.nrows) :
 		row_data = sheet.row(i)
 		#判断本行是否需要导出
 		need_output = xls_format(row_data[1],0,0)
-		# print row_data[1].value,row_data[1].ctype,need_output
 		if not output_all and not bool(need_output):
 			continue
 
@@ -950,7 +949,7 @@ def merge(src, tar):
 LANG_PYTHON = 0x1111
 LANG_LUA = 0x2222
 
-def mainConvert(filename,output_filename,xls_sheet=None,skip_row_num=0,hookfile=None,update_file_list=None):
+def convert2File(filename,output_filename,xls_sheet=None,skip_row_num=0,hookfile=None,update_file_list=None):
 	if not os.path.isfile(filename) and not os.path.isdir(filename):
 		exit("Error: %s is not a valid filename or pathname" % filename)
 
@@ -1063,6 +1062,6 @@ def main():
 	convert2File(filename,output_filename,hookfile,update_file_list)
 
 if __name__=="__main__":
-	main()
-	# print convert2Dict('devxls_test.xls',1003)
+	# main()
+	print convert2Dict('autogen_config.xls','autogen_config')
 
