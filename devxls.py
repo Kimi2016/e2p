@@ -701,12 +701,15 @@ def convert2Dict(xls_file, xls_sheet= None,skip_row_num=0):
 	if xls_sheet is None:#导出整表
 		return parse_table(xls_fileobj)
 	else:#导出指定sheet
+		if type(xls_sheet) != UnicodeType:
+			xls_sheet = xls_sheet.decode('gb2312')
+
 		for sheet in xls_fileobj.sheets():
 			try:
 				name = int(sheet.name)
 			except:
 				name = sheet.name
-
+			# print name,type(name),type(name) == UnicodeType,'|',xls_sheet,type(xls_sheet),type(xls_sheet) == UnicodeType
 			if name != xls_sheet:
 				continue
 			return parse_sheet(sheet,KEY_ROW,TYPE_ROW,DATA_ROW,name,skip_row_num)
@@ -1065,7 +1068,10 @@ if __name__=="__main__":
 	# main()
 	# print convert2Dict('autogen_config.xls','autogen_config')
 	# convert2File('aa.xls','result2.py','main')
-	convert2File('devxls_test.xls','devxls_test.py')
+	# convert2File('devxls_test.xls','devxls_test.py')
 	# convert2File('autogen_config.xls','result.py','autogen_config')
 	# convert2Dict('autogen_config.xls','autogen_config')
+	convert2File(u'D:/Program/5.WOW/doc/design/数据表/NPC表.xls', 'NPC_table.py', xls_sheet=None)
+	# convert2File(u'D:/Program/5.WOW/doc/design/数据表/文本表.xls', 'text_table.py', xls_sheet=None)
+	# convert2File(u'D:/Program/5.WOW/doc/design/数据表/任务表.xls', 'arearange_table.py', xls_sheet='区域范围表',skip_row_num = 1)
 
